@@ -18,28 +18,30 @@ def print_rib(dest):
   # prints out all about a single gobgp_pb2.Destination object
   print dest.prefix
   path = Path()
-  for attr in [attr for attr in dir(dest.paths._values[0]) if re.match('^[a-z]', attr)]:
-    if attr == "nlri":
+
+  for item in dest.paths[0].ListFields():
+    if item[0].name == "nlri":
       path.nlri = Buf()
-      n_v = getattr(dest.paths._values[0], attr)
+      n_v = dest.paths[0].nlri
       n_v_buf = create_string_buffer(n_v)
       path.nlri.value = cast(n_v_buf, POINTER(c_char))
       path.nlri.len = c_int(len(n_v))
-    elif attr == "pattrs":
+    elif item[0].name == "pattrs":
       pattrs = []
-      for pattr in getattr(dest.paths._values[0], attr):
+      for p in item[1]:
         p_a = Buf()
-        p_a_v = pattr
+        p_a_v = p
         p_a_v_buf = create_string_buffer(p_a_v)
         p_a.value = cast(p_a_v_buf, POINTER(c_char))
         p_a.len = c_int(len(p_a_v))
         pattrs.append(pointer(p_a))
       path.path_attributes = pointer((POINTER(Buf) * _PATTRS_CAP)(*pattrs))
-    elif attr == "uuid":
-      print "  {}: {}".format(attr, UUID(bytes=getattr(dest.paths._values[0], attr)))
+    elif item[0].name == "uuid":
+      print "  {}: {}".format(item[0].name, UUID(bytes=item[1]))
     else:
       # print everything other than nlri and path_attributers
-      print "  {}: {}".format(attr, getattr(dest.paths._values[0], attr))
+      print "  {}: {}".format(item[0].name, item[1])
+
   path.path_attributes_len = c_int(len(pattrs))
   path.path_attributes_cap = c_int(_PATTRS_CAP)
   decoded_path = libgobgp.decode_path(path)
